@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BD Route Planner — AI Algorithm Visualizer</title>
+  <meta name="description" content="Interactive visualization of BFS, DFS, UCS, IDS, Best-First, and A* search algorithms on a real Dhaka road network with traffic, road condition, and safety metrics." />
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════  SIDEBAR  ═══════════════════════════ -->
+<aside id="sidebar">
+
+  <!-- Logo -->
+  <div id="sidebar-logo">
+    <div class="logo-icon">🗺</div>
+    <div class="logo-text">
+      <span class="logo-title">BD Route Planner</span>
+      <span class="logo-sub">Algorithm Visualizer</span>
+    </div>
+  </div>
+
+  <div id="sidebar-scroll">
+
+    <!-- Graph Info -->
+    <div class="section-card" id="graph-info-card">
+      <div class="section-header">
+        <span class="section-icon">🏙</span>
+        <span>Road Network</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Area</span>
+        <span class="info-val">Dhanmondi, Dhaka</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Nodes</span>
+        <span class="info-val" id="g-nodes">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Edges</span>
+        <span class="info-val" id="g-edges">—</span>
+      </div>
+    </div>
+
+    <!-- Route Selection -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">📍</span>
+        <span>Route</span>
+      </div>
+
+      <div class="mode-tabs" id="click-mode-tabs">
+        <button class="mode-tab active" data-mode="source" id="tab-source">Set Source</button>
+        <button class="mode-tab"        data-mode="dest"   id="tab-dest">Set Dest</button>
+        <button class="mode-tab"        data-mode="view"   id="tab-view">View</button>
+        <button class="mode-tab mode-tab-block" data-mode="block" id="tab-block">🚧 Block</button>
+      </div>
+
+      <div class="node-display-row">
+        <div class="node-pill source-pill" id="source-pill">
+          <span class="pill-dot"></span>
+          <span id="source-label">Click map → source</span>
+        </div>
+        <div class="node-pill dest-pill" id="dest-pill">
+          <span class="pill-dot"></span>
+          <span id="dest-label">Click map → destination</span>
+        </div>
+      </div>
+
+      <button class="btn btn-ghost btn-sm" id="clear-btn">✕ Clear Route</button>
+    </div>
+
+    <!-- Scenario -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">🌍</span>
+        <span>Scenario</span>
+      </div>
+      <div class="scenario-grid">
+        <button class="scenario-btn active" data-scenario="normal">🌤 Normal</button>
+        <button class="scenario-btn" data-scenario="peak_hour">🚗 Peak Hour</button>
+        <button class="scenario-btn" data-scenario="heavy_traffic">🚦 Heavy Traffic</button>
+        <button class="scenario-btn" data-scenario="flooded">🌊 Flooded</button>
+        <button class="scenario-btn" data-scenario="road_blocked">🚧 Blocked</button>
+        <button class="scenario-btn" data-scenario="night">🌙 Night</button>
+        <button class="scenario-btn" data-scenario="storm">⛈ Storm</button>
+      </div>
+      <div class="manual-block-row">
+        <span class="manual-block-label">Manual blocks: <span id="manual-block-count">0</span></span>
+        <button class="btn btn-ghost btn-sm" id="clear-manual-blocks-btn" disabled>✕ Clear All</button>
+      </div>
+    </div>
+
+    <!-- Algorithm -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">⚙</span>
+        <span>Algorithm</span>
+      </div>
+      <div class="algo-grid">
+        <button class="algo-btn" data-algo="bfs">BFS</button>
+        <button class="algo-btn" data-algo="dfs">DFS</button>
+        <button class="algo-btn" data-algo="ucs">UCS</button>
+        <button class="algo-btn" data-algo="ids">IDS</button>
+        <button class="algo-btn" data-algo="best_first">Best-First</button>
+        <button class="algo-btn active" data-algo="astar">A★</button>
+      </div>
+      <div class="algo-desc" id="algo-desc">
+        <strong>A★</strong> — Optimal &amp; efficient. Uses f(n)=g(n)+h(n). Guided by admissible heuristic.
+      </div>
+    </div>
+
+    <!-- Cost Weights -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">⚖</span>
+        <span>Cost Weights</span>
+      </div>
+      <div class="weight-sliders">
+        <div class="slider-row">
+          <label>Distance</label>
+          <input type="range" id="w-distance" min="0" max="3" step="0.1" value="1.0" />
+          <span class="slider-val" id="w-distance-val">1.0</span>
+        </div>
+        <div class="slider-row">
+          <label>Traffic</label>
+          <input type="range" id="w-traffic" min="0" max="3" step="0.1" value="1.0" />
+          <span class="slider-val" id="w-traffic-val">1.0</span>
+        </div>
+        <div class="slider-row">
+          <label>Condition</label>
+          <input type="range" id="w-condition" min="0" max="3" step="0.1" value="1.0" />
+          <span class="slider-val" id="w-condition-val">1.0</span>
+        </div>
+        <div class="slider-row">
+          <label>Safety</label>
+          <input type="range" id="w-safety" min="0" max="3" step="0.1" value="1.0" />
+          <span class="slider-val" id="w-safety-val">1.0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="section-card">
+      <div class="anim-speed-row">
+        <label for="anim-speed">⚡ Anim Speed</label>
+        <input type="range" id="anim-speed" min="1" max="5" value="3" step="1" />
+        <span class="slider-val" id="anim-speed-val">3</span>
+      </div>
+      <button class="btn btn-primary" id="run-btn" disabled>▶  Run Algorithm</button>
+      <button class="btn btn-accent"  id="run-all-btn" disabled>⚡  Run All &amp; Compare</button>
+      <button class="btn btn-ghost btn-sm" id="clear-path-btn" style="margin-top:4px" disabled>🗑 Clear Path &amp; Explored</button>
+    </div>
+
+    <!-- Legend -->
+    <div class="section-card">
+      <div class="section-header">
+        <span class="section-icon">🎨</span>
+        <span>Legend</span>
+      </div>
+      <div class="legend-grid">
+        <div class="legend-item"><span class="ldot" style="background:#00ff88"></span>Source</div>
+        <div class="legend-item"><span class="ldot" style="background:#ff3a6e"></span>Destination</div>
+        <div class="legend-item"><span class="ldot" style="background:#ffd700"></span>Explored</div>
+        <div class="legend-item"><span class="ldot" style="background:#00d4ff"></span>Path</div>
+        <div class="legend-item"><span class="ldot" style="background:#16a34a"></span>Good Road</div>
+        <div class="legend-item"><span class="ldot" style="background:#d97706"></span>Damaged</div>
+        <div class="legend-item"><span class="ldot" style="background:#1a56db"></span>Flooded</div>
+        <div class="legend-item"><span class="ldot" style="background:#cc0000"></span>Blocked</div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar-scroll -->
+</aside>
+
+<!-- ═══════════════════════════  MAP  ═══════════════════════════ -->
+<main id="main-content">
+
+  <div id="map"></div>
+
+  <!-- Floating status -->
+  <div id="status-bar">
+    <div id="status-spinner" class="spinner" style="display:none"></div>
+    <span id="status-text">Loading road network…</span>
+  </div>
+
+</main>
+
+<!-- ═══════════════════════════  RESULTS PANEL  ═══════════════════════════ -->
+<div id="results-panel" class="panel-hidden">
+
+  <div id="results-header">
+    <div id="results-title">Results</div>
+    <button id="close-results-btn">✕</button>
+  </div>
+
+  <!-- Single run -->
+  <div id="single-result-view">
+    <div class="stat-cards" id="stat-cards">
+      <div class="stat-card">
+        <div class="stat-val" id="s-algo">—</div>
+        <div class="stat-label">Algorithm</div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="stat-val" id="s-dist">—</div>
+        <div class="stat-label">Distance (km)</div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="stat-val" id="s-cost">—</div>
+        <div class="stat-label">Total Cost</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="s-nodes">—</div>
+        <div class="stat-label">Nodes Expanded</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="s-runtime">—</div>
+        <div class="stat-label">Runtime (ms)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compare all -->
+  <div id="compare-view" style="display:none">
+    <div id="compare-table-wrap">
+      <table id="compare-table">
+        <thead>
+          <tr>
+            <th>Algorithm</th>
+            <th>Found?</th>
+            <th>Distance (km)</th>
+            <th>Total Cost</th>
+            <th>Nodes Expanded</th>
+            <th>Runtime (ms)</th>
+          </tr>
+        </thead>
+        <tbody id="compare-tbody"></tbody>
+      </table>
+    </div>
+
+    <div id="charts-grid">
+      <div class="chart-card"><canvas id="chart-cost"></canvas></div>
+      <div class="chart-card"><canvas id="chart-nodes"></canvas></div>
+      <div class="chart-card"><canvas id="chart-runtime"></canvas></div>
+      <div class="chart-card"><canvas id="chart-distance"></canvas></div>
+    </div>
+  </div>
+
+</div><!-- /results-panel -->
+
+<script src="/static/app.js"></script>
+</body>
+</html>
